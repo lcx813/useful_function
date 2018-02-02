@@ -1,0 +1,106 @@
+import sqlite3
+
+###################################
+# iterative menthol without chunk #
+###################################
+def load_csv(tablename, file, dbconnname):
+
+
+    print("in load_csv")
+    print(tablename,file,dbconnname)
+    print(pd.read_csv(file, nrows=5))
+
+    sql_file = open("src/sql_scripts/create_tables_sqlite_" + tablename + ".sql", "r")
+ 
+    conn = sqlite3.connect(dbconnname)
+    c = conn.cursor()
+    table_2_create = sql_file.read()
+    c.execute(table_2_create)
+
+    df = pd.read_sql_query('SELECT name FROM sqlite_master WHERE type = "table" ', conn)
+    print("total tables")
+    print(df.shape)
+    print(file)
+    
+    with codecs.open(file, "r", ENCODING) as infile:
+        reader = csv.reader(infile)
+        headers = next(reader)
+        print(headers)
+
+        for row in reader:
+            #print(row)
+            sql = "INSERT INTO " + tablename + " VALUES ({})".format(', '.join(['?'] * len(row)))
+            #print(sql)
+            c.executemany(sql, (row,))
+        conn.commit()
+
+    df = pd.read_sql_query('SELECT name FROM sqlite_master WHERE type = "table" ', conn)
+    print("tables in db")
+    print(df)
+
+    df2 = pd.read_sql_query('SELECT * FROM ' + tablename, conn)
+    print(df2)
+
+    conn.close()
+
+
+
+
+################################
+# iterative menthol with chunk #
+################################
+def load_csv(tablename, file, dbconnname):
+    print("in load_csv")
+    print(tablename, file, dbconnname)
+    print(pd.read_csv(file, nrows=5))
+
+    sql_file = open("src/sql_scripts/create_tables_sqlite_" + tablename + ".sql", "r")
+    print("test")
+
+    conn = sqlite3.connect(dbconnname)
+    c = conn.cursor()
+    table_2_create = sql_file.read()
+    print("!!!")
+    print(table_2_create)
+
+    c.execute(table_2_create)
+
+    df = pd.read_sql_query('SELECT name FROM sqlite_master WHERE type = "table" ', conn)
+    print("total tables")
+    print(df.shape)
+    print(df)
+
+    print(file)
+    with codecs.open(file, "r", ENCODING) as infile:
+        reader = csv.reader(infile)
+        headers = next(reader)
+        print(headers)
+        chunk_size = 1000
+        cnt = 0
+        chunk = []
+        for row in reader:
+            cnt += 1
+            if cnt < chunk_size:
+                chunk.append(row)
+            elif cnt % chunk_size == 0:
+                chunk.append(row)
+                sql = "INSERT INTO " + tablename + " VALUES ({})".format(', '.join(['?'] * len(row)))
+                # print(chunk)
+                c.executemany(sql, chunk)
+                conn.commit()
+                chunk = []
+                cnt /= chunk_size
+
+        sql = "INSERT INTO " + tablename + " VALUES ({})".format(', '.join(['?'] * len(row)))
+        c.executemany(sql, chunk)
+
+        conn.commit()
+
+    df = pd.read_sql_query('SELECT name FROM sqlite_master WHERE type = "table" ', conn)
+    print("tables in db")
+    print(df)
+
+    df2 = pd.read_sql_query('SELECT * FROM ' + tablename, conn)
+    print(df2)
+
+    conn.close()
